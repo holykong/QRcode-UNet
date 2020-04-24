@@ -1,1 +1,75 @@
+%matplotlib inline
+from __future__ import print_function
+import torch
 
+import numpy as np
+import pylab as plt2
+import matplotlib.pyplot as plt
+
+def creategrid( nh,nw ):
+    mr = nh#680
+    mc = nw#980
+    
+    xx = np.arange(mr-1, -1, -1) #[mr-1 ... 2  1  0]
+    yy = np.arange(0, mc, 1)    #[ 0  1 ... mc-1]
+    [Y, X] = np.meshgrid(xx, yy)
+    ms = np.transpose(np.asarray([X.flatten('F'), Y.flatten('F')]), (1,0))#[400,2]
+    print(ms)
+    #flatten('F')按照竖的方向降成一维
+    #转置
+    
+    perturbed_mesh = ms
+
+    nv = np.random.randint(4,8) #种子点数目
+    for k in range(nv):
+        #Choosing one vertex randomly 
+        vidx = np.random.randint(np.shape(ms)[0])#400以内的随机整数        
+        vtex = ms[vidx, :]
+        #print(vtex)
+        #Vector between all vertices and the selected one
+        xv  = perturbed_mesh - vtex
+        #Random movement 
+        mv = (np.random.rand(1,2) - 0.5)*50#shape (1,2) -10到10之间浮点数
+        #print(mv)
+        hxv = np.zeros((np.shape(xv)[0], np.shape(xv)[1] +1) )#（400,3）的零矩阵
+        hxv[:, :-1] = xv#复制前两列
+        hmv = np.tile(np.append(mv, 0), (np.shape(xv)[0],1))#shape (3,)一维   （400,1）最终shape（400,3）
+        d = np.cross(hxv, hmv)#叉乘
+        d = np.absolute(d[:, 2])#绝对值
+        d = d / (np.linalg.norm(mv, ord=2))#2范数
+        wt = d #shape(400,)
+
+        curve_type = np.random.rand(1)
+        if curve_type > 0.4:#折叠   alpha越小折叠程度越大
+            alpha = np.random.rand(1) * 50 + 50
+            wt = alpha / (wt + alpha)
+        else:#弯曲   alpha越小弯曲程度越大
+            alpha = np.random.rand(1)
+            wt = 1 - (wt / 100 )**alpha
+        msmv = mv * np.expand_dims(wt, axis=1)
+        #print(msmv.shape)
+        perturbed_mesh = perturbed_mesh + msmv
+    
+    mesh = np.zeros((mr, mc, 2 ))#.astype(np.float32) 
+    #mesh1 = np.zeros((mr, mc, 2 ))
+    for i in range(mr*mc):
+        mx = ms[i,0]
+        my = ms[i,1]
+        #mesh1[mx,my,0] = mx 
+        #mesh1[mx,my,1] = my 
+        d_x = perturbed_mesh[i,0] 
+        d_y = perturbed_mesh[i,1] 
+        mesh[my,mx,0] = d_x #*d_x + d_y*d_y
+        mesh[my,mx,1] = d_y   
+
+    return mesh,ms,perturbed_mesh;
+
+mesh,ms,p_ms = creategrid(4,6)
+#print(mesh[:,:,0])
+#print(ms)
+#print(p_ms)
+#print(mesh1[:,:,0])
+#sns.heatmap(mesh,annot=True)
+#perturbed_mesh = creategrid(20,20)
+#plt.scatter(perturbed_mesh[:, 0], perturbed_mesh[:, 1], c=np.arange(0, 20*20))#
+#plt.show()
